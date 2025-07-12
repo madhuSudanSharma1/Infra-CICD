@@ -1,0 +1,70 @@
+name: Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_type:
+        description: 'Type of deployment'
+        required: true
+        type: choice
+        options:
+          - release
+          - build
+      artifact_version:
+        description: 'Artifact version (e.g., v1.2.3 for release, or workflow run ID for build)'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS Credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+
+      - name: Download Artifact from Build
+        if: github.event.inputs.deploy_type == 'build'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: ci.yaml
+          run_id: ${{ github.event.inputs.artifact_version }}
+          name: ${{ github.event.inputs.artifact_version }}.zip
+          path: ./artifacts
+
+      - name: Download Artifact from Release
+        if: github.event.inputs.deploy_type == 'release'
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: ${{ github.repository }}
+          version: ${{ github.event.inputs.artifact_version }}
+          file: ${{ github.event.inputs.artifact_version }}.zip
+          target: ./artifacts/${{ github.event.inputs.artifact_version }}.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Zip File
+        run: |
+          unzip -o ./artifacts/${{ github.event.inputs.artifact_version }}.zip -d .
+        working-directory: .
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.0
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./infrastructure
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan
+        working-directory: ./infrastructure
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: ./infrastructure
