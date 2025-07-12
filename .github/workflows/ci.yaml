@@ -6,87 +6,112 @@ on:
       - synchronize
       - reopened
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+lint:
+  runs-on: ubuntu-latest
+  permissions:
+    id-token: write
+    contents: read
 
-      - name: Configure AWS Credentials with OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-1
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.12.0
+    - name: Configure AWS Credentials with OIDC
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        aws-region: us-east-1
 
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
-        with:
-          tflint_version: v0.52.0
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.12.0
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./infrastructure
+    - name: Setup TFLint
+      uses: terraform-linters/setup-tflint@v4
+      with:
+        tflint_version: v0.52.0
 
-      - name: Run TFLint
-        id: tflint
-        run: tflint --format=compact
-        working-directory: ./infrastructure
+    - name: Terraform Init
+      run: terraform init
+      working-directory: ./infrastructure
 
-      - name: Comment TFLint Results
-        uses: GetTerminus/terraform-pr-commenter@v1
-        if: failure() && steps.tflint.outcome == 'failure'
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
-        with:
-          commenter_type: "tflint"
-          commenter_input: ${{ steps.tflint.outputs.stdout }}
-          commenter_exitcode: ${{ steps.tflint.outputs.exitcode }}
-            
+    - name: Run TFLint
+      id: tflint
+      working-directory: ./infrastructure
+      run: |
+        set -o pipefail
+        OUTPUT=$(tflint --format=compact 2>&1)
+        EXIT_CODE=$?
+        echo "$OUTPUT"
+        echo "stdout<<EOF" >> $GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
+        exit $EXIT_CODE
+      continue-on-error: true
 
-      - name: Terraform Format
-        id: fmt
-        run: terraform fmt -check -recursive
-        working-directory: ./infrastructure
+    - name: Comment TFLint Results
+      uses: GetTerminus/terraform-pr-commenter@v3
+      if: failure() && steps.tflint.outcome == 'failure'
+      with:
+        commenter_type: "tflint"
+        commenter_input: ${{ steps.tflint.outputs.stdout }}
+        commenter_exitcode: ${{ steps.tflint.outputs.exitcode }}
 
-      - name: Comment Terraform Format Results
-        uses: GetTerminus/terraform-pr-commenter@v1
-        if: failure() && steps.fmt.outcome == 'failure'
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
-        with:
-          commenter_type: "fmt"
-          commenter_input: ${{ steps.fmt.outputs.stdout }}
-          commenter_exitcode: ${{ steps.fmt.outputs.exitcode }}
+    - name: Terraform Format
+      id: fmt
+      working-directory: ./infrastructure
+      run: |
+        OUTPUT=$(terraform fmt -check -recursive -diff 2>&1)
+        EXIT_CODE=$?
+        echo "$OUTPUT"
+        echo "stdout<<EOF" >> $GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
+        exit $EXIT_CODE
+      continue-on-error: true
 
-      - name: Terraform Validate
-        id: validate
-        run: terraform validate -no-color
-        working-directory: ./infrastructure
+    - name: Comment Terraform Format Results
+      uses: GetTerminus/terraform-pr-commenter@v3
+      if: failure() && steps.fmt.outcome == 'failure'
+      with:
+        commenter_type: "fmt"
+        commenter_input: ${{ steps.fmt.outputs.stdout }}
+        commenter_exitcode: ${{ steps.fmt.outputs.exitcode }}
 
-      - name: Comment Terraform Validate Results
-        uses: GetTerminus/terraform-pr-commenter@v1
-        if: failure() && steps.validate.outcome == 'failure'
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
-        with:
-          commenter_type: "validate"
-          commenter_input: ${{ steps.validate.outputs.stdout }}
-          commenter_exitcode: ${{ steps.validate.outputs.exitcode }}
+    - name: Terraform Validate
+      id: validate
+      working-directory: ./infrastructure
+      run: |
+        OUTPUT=$(terraform validate -no-color 2>&1)
+        EXIT_CODE=$?
+        echo "$OUTPUT"
+        echo "stdout<<EOF" >> $GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
+        exit $EXIT_CODE
+      continue-on-error: true
 
-      - name: Block PR if any checks failed
-        if: failure()
-        run: |
-          echo "::error::Critical issues found in Terraform code. Please fix the above issues before merging."
-          exit 1
+    - name: Comment Terraform Validate Results
+      uses: GetTerminus/terraform-pr-commenter@v3
+      if: failure() && steps.validate.outcome == 'failure'
+      with:
+        commenter_type: "validate"
+        commenter_input: ${{ steps.validate.outputs.stdout }}
+        commenter_exitcode: ${{ steps.validate.outputs.exitcode }}
+
+    - name: Block PR if any checks failed
+      if: failure()
+      run: |
+        echo "::error::Critical issues found in Terraform code. Please fix the above issues before merging."
+        exit 1
 
   security-scan:
     runs-on: ubuntu-latest
@@ -159,8 +184,6 @@ jobs:
 
       - name: Comment Terraform Plan Results
         uses: GetTerminus/terraform-pr-commenter@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
           commenter_type: "plan"
           commenter_input: ${{ steps.plan.outputs.stdout }}
