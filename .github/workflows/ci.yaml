@@ -39,8 +39,10 @@ jobs:
           tflint_wrapper: true
 
       - name: Terraform Init
+        id: init
         run: terraform init
         working-directory: ./infrastructure
+        continue-on-error: true
 
       - name: Run TFLint
         id: tflint
@@ -57,16 +59,6 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         continue-on-error: true
 
-      - name: Comment TFLint Results
-        uses: GetTerminus/terraform-pr-commenter@v3
-        if: failure() && (steps.tflint.outcome == 'failure')
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
-        with:
-          commenter_type: "tflint"
-          commenter_input: ${{ format('{0}{1}', steps.tflint.outputs.stdout, steps.tflint.outputs.stderr) }}
-          commenter_exitcode: ${{ steps.tflint.outputs.exitcode }}
-
       - name: Terraform Format
         id: fmt
         working-directory: ./infrastructure
@@ -81,17 +73,6 @@ jobs:
           cat fmt_output.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         continue-on-error: true
-
-      - name: Comment Terraform Format Results
-        uses: GetTerminus/terraform-pr-commenter@v3
-        if: failure() && ( steps.fmt.outcome == 'failure')
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
-        with:
-          commenter_type: "fmt"
-          commenter_input: ${{ format('{0}{1}', steps.fmt.outputs.stdout, steps.fmt.outputs.stderr) }}
-          commenter_exitcode: ${{ steps.fmt.outputs.exitcode }}
-        
 
       - name: Terraform Validate
         id: validate
@@ -108,9 +89,30 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         continue-on-error: true
 
+      # Comment results regardless of outcome (always run)
+      - name: Comment TFLint Results
+        uses: GetTerminus/terraform-pr-commenter@v3
+        if: steps.tflint.outputs.exitcode != '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
+        with:
+          commenter_type: "tflint"
+          commenter_input: ${{ format('{0}{1}', steps.tflint.outputs.stdout, steps.tflint.outputs.stderr) }}
+          commenter_exitcode: ${{ steps.tflint.outputs.exitcode }}
+
+      - name: Comment Terraform Format Results
+        uses: GetTerminus/terraform-pr-commenter@v3
+        if: steps.fmt.outputs.exitcode != '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
+        with:
+          commenter_type: "fmt"
+          commenter_input: ${{ format('{0}{1}', steps.fmt.outputs.stdout, steps.fmt.outputs.stderr) }}
+          commenter_exitcode: ${{ steps.fmt.outputs.exitcode }}
+
       - name: Comment Terraform Validate Results
         uses: GetTerminus/terraform-pr-commenter@v3
-        if: failure() && (steps.validate.outcome == 'failure')
+        if: steps.validate.outputs.exitcode != '0'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
@@ -119,7 +121,7 @@ jobs:
           commenter_exitcode: ${{ steps.validate.outputs.exitcode }}
 
       - name: Block PR if any checks failed
-        if: failure()
+        if: steps.init.outcome == 'failure' || steps.tflint.outputs.exitcode != '0' || steps.fmt.outputs.exitcode != '0' || steps.validate.outputs.exitcode != '0'
         run: |
           echo "::error::Critical issues found in Terraform code. Please fix the above issues before merging."
           exit 1
