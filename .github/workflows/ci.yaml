@@ -59,7 +59,7 @@ jobs:
 
       - name: Comment TFLint Results
         uses: GetTerminus/terraform-pr-commenter@v3
-        if: always() && (steps.tflint.outcome == 'success' || steps.tflint.outcome == 'failure')
+        if: failure() && (steps.tflint.outcome == 'failure')
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
@@ -84,13 +84,14 @@ jobs:
 
       - name: Comment Terraform Format Results
         uses: GetTerminus/terraform-pr-commenter@v3
-        if: always() && (steps.fmt.outcome == 'success' || steps.fmt.outcome == 'failure')
+        if: failure() && ( steps.fmt.outcome == 'failure')
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
           commenter_type: "fmt"
           commenter_input: ${{ format('{0}{1}', steps.fmt.outputs.stdout, steps.fmt.outputs.stderr) }}
           commenter_exitcode: ${{ steps.fmt.outputs.exitcode }}
+        
 
       - name: Terraform Validate
         id: validate
@@ -109,7 +110,7 @@ jobs:
 
       - name: Comment Terraform Validate Results
         uses: GetTerminus/terraform-pr-commenter@v3
-        if: always() && (steps.validate.outcome == 'success' || steps.validate.outcome == 'failure')
+        if: failure() && (steps.validate.outcome == 'failure')
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
@@ -162,6 +163,7 @@ jobs:
         run: |
           echo "::error::Security issues found in Terraform code. Please fix critical and high severity issues before merging."
           exit 1
+  
   plan:
     runs-on: ubuntu-latest
     needs: [lint, security-scan]
