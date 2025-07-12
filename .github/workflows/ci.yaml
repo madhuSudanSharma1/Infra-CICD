@@ -44,10 +44,13 @@ jobs:
       - name: Comment TFLint Results
         uses: GetTerminus/terraform-pr-commenter@v1
         if: failure() && steps.tflint.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
           commenter_type: "tflint"
           commenter_input: ${{ steps.tflint.outputs.stdout }}
           commenter_exitcode: ${{ steps.tflint.outputs.exitcode }}
+            
 
       - name: Terraform Format
         id: fmt
@@ -57,6 +60,8 @@ jobs:
       - name: Comment Terraform Format Results
         uses: GetTerminus/terraform-pr-commenter@v1
         if: failure() && steps.fmt.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
           commenter_type: "fmt"
           commenter_input: ${{ steps.fmt.outputs.stdout }}
@@ -70,6 +75,8 @@ jobs:
       - name: Comment Terraform Validate Results
         uses: GetTerminus/terraform-pr-commenter@v1
         if: failure() && steps.validate.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
           commenter_type: "validate"
           commenter_input: ${{ steps.validate.outputs.stdout }}
@@ -110,7 +117,7 @@ jobs:
         id: tfsec
         uses: tfsec/tfsec-pr-commenter-action@v1.3.1
         with:
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.PAT_GITHUB }}
           working_directory: ./infrastructure
 
 
@@ -152,6 +159,8 @@ jobs:
 
       - name: Comment Terraform Plan Results
         uses: GetTerminus/terraform-pr-commenter@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         with:
           commenter_type: "plan"
           commenter_input: ${{ steps.plan.outputs.stdout }}
