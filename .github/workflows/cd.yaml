@@ -33,7 +33,7 @@ jobs:
           echo "deploy_type: ${{ github.event.inputs.deploy_type }}"
           echo "run_id: ${{ github.event.inputs.run_id }}"
 
-      # Step to download build artifact by name (using GitHub Actions artifact API)
+
       - name: Download Artifact from Build by Name
         if: github.event.inputs.deploy_type == 'build'
         env:
@@ -112,13 +112,14 @@ jobs:
           terraform_version: 1.12.0
 
       - name: Terraform Init
-        run: terraform init
-        working-directory: artifacts
+        run: |
+         cd artifacts
+         terraform init
 
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color -out=tfplan
-        working-directory: artifacts
+        
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
