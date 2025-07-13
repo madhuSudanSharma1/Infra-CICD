@@ -243,6 +243,13 @@ jobs:
           fi
         shell: bash
 
+      - name: Debug GITHUB_OUTPUT
+        run: |
+          set -x
+          echo "GITHUB_OUTPUT=$GITHUB_OUTPUT"
+          ls -l "$GITHUB_OUTPUT" || echo "GITHUB_OUTPUT file not found"
+        shell: bash
+
       - name: Determine version bump
         id: version_bump
         run: |
@@ -295,14 +302,15 @@ jobs:
           echo "DEBUG: major=$major, minor=$minor, patch=$patch, bump_type=$bump_type" >&2
           
           if [[ "$bump_type" == "major" ]]; then
-            ((major++)) || { echo "ERROR: Failed to increment major version" >&2; exit 1; }
+            major=$((major + 1)) || { echo "ERROR: Failed to increment major version" >&2; exit 1; }
             minor=0
             patch=0
           elif [[ "$bump_type" == "minor" ]]; then
-            ((minor++)) || { echo "ERROR: Failed to increment minor version" >&2; exit 1; }
+            minor=$((minor + 1)) || { echo "ERROR: Failed to increment minor version" >&2; exit 1; }
             patch=0
           else
-            ((patch++)) || { echo "ERROR: Failed to increment patch version" >&2; exit 1; }
+            echo "DEBUG: patch before increment=$patch" >&2
+            patch=$((patch + 1)) || { echo "ERROR: Failed to increment patch version" >&2; exit 1; }
           fi
           
           new_version="v${major}.${minor}.${patch}"
