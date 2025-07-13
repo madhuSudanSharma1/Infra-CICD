@@ -50,29 +50,32 @@ jobs:
         working-directory: ./infrastructure
         continue-on-error: true
         
-      # Add workspace selection based on branch
       - name: Select or Create Workspace
         working-directory: ./infrastructure
         run: |
+          set -euo pipefail
+
           # Determine workspace based on branch name
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
             WORKSPACE="prod"
           else
             WORKSPACE="dev"
           fi
           
-          echo "🔄 Branch: ${{ github.ref }}"
-          echo "🔄 Using Terraform workspace: $WORKSPACE"
-          
-          # Check if workspace exists
-          if terraform workspace list | grep -q "$WORKSPACE"; then
-            echo "✅ Selecting existing workspace: $WORKSPACE"
+          echo "Branch: ${{ github.ref }}"
+          echo "Using Terraform workspace: $WORKSPACE"
+
+          # Normalize and search for exact match
+          EXISTING=$(terraform workspace list | sed 's/^[* ]*//' | grep -Fx "$WORKSPACE" || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "Selecting existing workspace: $WORKSPACE"
             terraform workspace select "$WORKSPACE"
           else
-            echo "🆕 Creating new workspace: $WORKSPACE"
+            echo "Creating new workspace: $WORKSPACE"
             terraform workspace new "$WORKSPACE"
           fi
-        continue-on-error: true
+
 
       - name: Run TFLint
         id: tflint
@@ -183,28 +186,32 @@ jobs:
         run: terraform init
         working-directory: ./infrastructure
         
-      # Add workspace selection based on branch
       - name: Select or Create Workspace
         working-directory: ./infrastructure
         run: |
+          set -euo pipefail
+
           # Determine workspace based on branch name
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
             WORKSPACE="prod"
           else
             WORKSPACE="dev"
           fi
           
-          echo "🔄 Branch: ${{ github.ref }}"
-          echo "🔄 Using Terraform workspace: $WORKSPACE"
-          
-          # Check if workspace exists
-          if terraform workspace list | grep -q "$WORKSPACE"; then
-            echo "✅ Selecting existing workspace: $WORKSPACE"
+          echo "Branch: ${{ github.ref }}"
+          echo "Using Terraform workspace: $WORKSPACE"
+
+          # Normalize and search for exact match
+          EXISTING=$(terraform workspace list | sed 's/^[* ]*//' | grep -Fx "$WORKSPACE" || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "Selecting existing workspace: $WORKSPACE"
             terraform workspace select "$WORKSPACE"
           else
-            echo "🆕 Creating new workspace: $WORKSPACE"
+            echo "Creating new workspace: $WORKSPACE"
             terraform workspace new "$WORKSPACE"
           fi
+
 
       - name: Check using tfsec and comment Results on PR
         id: tfsec
@@ -247,26 +254,29 @@ jobs:
         run: terraform init
         working-directory: ./infrastructure
         
-      # Add workspace selection based on branch
       - name: Select or Create Workspace
         working-directory: ./infrastructure
         run: |
+          set -euo pipefail
+
           # Determine workspace based on branch name
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
             WORKSPACE="prod"
           else
             WORKSPACE="dev"
           fi
           
-          echo "🔄 Branch: ${{ github.ref }}"
-          echo "🔄 Using Terraform workspace: $WORKSPACE"
-          
-          # Check if workspace exists
-          if terraform workspace list | grep -q "$WORKSPACE"; then
-            echo "✅ Selecting existing workspace: $WORKSPACE"
+          echo "Branch: ${{ github.ref }}"
+          echo "Using Terraform workspace: $WORKSPACE"
+
+          # Normalize and search for exact match
+          EXISTING=$(terraform workspace list | sed 's/^[* ]*//' | grep -Fx "$WORKSPACE" || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "Selecting existing workspace: $WORKSPACE"
             terraform workspace select "$WORKSPACE"
           else
-            echo "🆕 Creating new workspace: $WORKSPACE"
+            echo "Creating new workspace: $WORKSPACE"
             terraform workspace new "$WORKSPACE"
           fi
 
