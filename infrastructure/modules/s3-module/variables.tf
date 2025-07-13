@@ -1,5 +1,5 @@
 variable "bucket_name" {
-  type = string
+  type        = string
   description = "The name of the S3 bucket"
 }
 variable "tags" {
@@ -12,7 +12,7 @@ variable "versioning_enabled" {
   type        = bool
   default     = false
 }
-variable allow_access_from_anywhere {
+variable "allow_access_from_anywhere" {
   description = "Allow access from anywhere"
   type        = bool
   default     = false

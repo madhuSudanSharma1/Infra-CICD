@@ -1,5 +1,5 @@
 variable "instance_name" {
-  type = string
+  type        = string
   description = "The name of Ec2 instance"
 }
 
@@ -38,5 +38,5 @@ variable "counts" {
   description = "Count of EC2 instances to create"
   type        = number
   default     = 1
-  
+
 }

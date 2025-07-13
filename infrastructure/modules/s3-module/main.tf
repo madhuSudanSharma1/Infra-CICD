@@ -1,6 +1,6 @@
 locals {
   bucket_name = var.bucket_name
-  tags        = merge(var.tags, {
+  tags = merge(var.tags, {
     Name = local.bucket_name
   })
 }
@@ -17,7 +17,7 @@ resource "aws_s3_bucket_versioning" "s3_bucket_versioning" {
   }
 }
 resource "aws_s3_bucket_public_access_block" "s3_bucket_public_access_block" {
-  bucket = aws_s3_bucket.s3_bucket.id
+  bucket                  = aws_s3_bucket.s3_bucket.id
   block_public_acls       = var.allow_access_from_anywhere ? false : true
   block_public_policy     = var.allow_access_from_anywhere ? false : true
   ignore_public_acls      = var.allow_access_from_anywhere ? false : true
