@@ -369,10 +369,11 @@ jobs:
           echo "github.event_name=${{ github.event_name }}"
           echo "github.base_ref=${{ github.base_ref }}"
           echo "github.ref_name=${{ github.ref_name }}"
+          echo "github.head_ref=${{ github.head_ref }}"
         shell: bash
 
       - name: Save Dev Version
-        if: github.event_name == 'pull_request' && github.ref_name == 'dev' || github.ref_name == 'dev'
+        if: github.event_name == 'pull_request' && github.head_ref == 'dev' || github.ref_name == 'dev'
         run: |
           set -x
           version="${{ steps.version_bump.outputs.new_version }}"
@@ -382,17 +383,16 @@ jobs:
         working-directory: .
 
       - name: Commit Dev Version File
-        if: github.event_name == 'pull_request' && github.ref_name == 'dev' || github.ref_name == 'dev'
+        if: github.event_name == 'pull_request' && github.head_ref == 'dev' || github.ref_name == 'dev'
         run: |
           set -x
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add dev_version.txt || { echo "ERROR: Failed to add dev_version.txt" >&2; exit 1; }
           git commit -m "Update dev version to ${{ steps.version_bump.outputs.new_version }}+dev+${short_hash }}" || { echo "ERROR: Failed to commit dev_version.txt" >&2; exit 1; }
-          git push || { echo "ERROR: Failed to push to repository" >&2; exit 1; }
+          git push origin HEAD:dev || { echo "ERROR: Failed to push to dev branch" >&2; exit 1; }
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
-
 
       - name: Comment Version on PR
         if: github.event_name == 'pull_request'
