@@ -112,15 +112,16 @@ jobs:
           terraform_version: 1.12.0
 
       - name: Terraform Init
-        run: |
-         cd artifacts
-         terraform init
+        working-directory: infrastructure
+        run: terraform init
 
       - name: Terraform Plan
         id: plan
+        working-directory: infrastructure
         run: terraform plan -no-color -out=tfplan
         
 
       - name: Terraform Apply
+        working-directory: infrastructure
         run: terraform apply -auto-approve tfplan
-        working-directory: artifacts
+        
