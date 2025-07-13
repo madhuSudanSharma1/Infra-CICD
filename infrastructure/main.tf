@@ -11,7 +11,7 @@ locals {
 resource "aws_instance" "ec2-instance" {
   ami                         = var.ami_id
   instance_type               = "t2.micro"
-  tags                        = merge(local.tags, { Name = "madhu-ec2-instance-1" })
+  tags                        = merge(local.tags, { Name = "madhu-ec2-instance-2" })
   associate_public_ip_address = true
   subnet_id                   = var.subnet_id
   vpc_security_group_ids      = [var.vpc_security_group_id]
