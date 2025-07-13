@@ -43,6 +43,7 @@ jobs:
         run: |
           echo "Looking for artifact named: $ARTIFACT_NAME"
           mkdir -p artifacts
+          
 
           response=$(curl -sSL \
             -H "Authorization: Bearer $TOKEN" \
@@ -112,15 +113,29 @@ jobs:
           terraform_version: 1.12.0
 
       - name: Terraform Init
-        run: |
-         cd artifacts
-         terraform init
+        working-directory: infrastructure
+        run: terraform init
 
+      - name: Select or Create Workspace
+        working-directory: infrastructure
+        run: |
+          WORKSPACE="${{ github.event.inputs.deploy_type == 'release' && 'prod' || 'dev' }}"
+          echo "Using Terraform workspace: $WORKSPACE"
+          
+          # Check if workspace exists
+          if terraform workspace list | grep -q "$WORKSPACE"; then
+            terraform workspace select "$WORKSPACE"
+          else
+            terraform workspace new "$WORKSPACE"
+          fi
+          
       - name: Terraform Plan
         id: plan
+        working-directory: infrastructure
         run: terraform plan -no-color -out=tfplan
         
 
       - name: Terraform Apply
+        working-directory: infrastructure
         run: terraform apply -auto-approve tfplan
-        working-directory: artifacts
+        

@@ -1,18 +1,27 @@
 provider "aws" {
   region = "us-east-1"
 }
-locals {
-  tags = {
-    Creator     = "Madhu Sharma"
-    Environment = terraform.workspace
-  }
+
+
+module "my_ec2_module" {
+  source                = "./modules/ec2-module"
+  instance_type         = local.current.ec2.instance_type
+  ami_id                = var.ami_id
+  subnet_id             = var.subnet_id
+  instance_name         = "my-ec2-instance-${terraform.workspace}"
+  vpc_security_group_id = var.vpc_security_group_id
+  tags                  = local.tags
+  has_public_ip         = local.current.ec2.has_public_ip
+  count                 = local.current.ec2.counts
 }
 
-resource "aws_instance" "ec2-instance" {
-  ami                         = var.ami_id
-  instance_type               = "t2.micro"
-  tags                        = merge(local.tags, { Name = "madhu-ec2-instance-2" })
-  associate_public_ip_address = true
-  subnet_id                   = var.subnet_id
-  vpc_security_group_ids      = [var.vpc_security_group_id]
+module "my_s3_module" {
+  source                     = "./modules/s3-module"
+  bucket_name                = "my-s3-bucket-madhu-${terraform.workspace}-${count.index}"
+  tags                       = local.tags
+  versioning_enabled         = local.current.s3.versioning_enabled
+  allow_access_from_anywhere = local.current.s3.allow_access_from_anywhere
+  count                      = local.current.s3.counts
+  region                     = local.region
 }
+

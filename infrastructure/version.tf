@@ -11,6 +11,6 @@ terraform {
     region       = "us-east-1"
     encrypt      = true
     use_lockfile = true
-    key          = "ec2-instance/terraform.tfstate"
+    key          = "terraform-day-3/infrastructure.tfstate"
   }
 }
