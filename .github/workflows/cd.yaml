@@ -43,6 +43,7 @@ jobs:
         run: |
           echo "Looking for artifact named: $ARTIFACT_NAME"
           mkdir -p artifacts
+          
 
           response=$(curl -sSL \
             -H "Authorization: Bearer $TOKEN" \
