@@ -30,6 +30,12 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: us-east-1
+      - name: Debug Inputs
+        run: |
+          echo "artifact_version: ${{ github.event.inputs.artifact_version }}"
+          echo "Expected file: infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip"
+          echo "deploy_type: ${{ github.event.inputs.deploy_type }}"
+          echo "run_id: ${{ github.event.inputs.run_id }}"
 
       - name: Download Artifact from Build
         if: github.event.inputs.deploy_type == 'build'
