@@ -33,59 +33,63 @@ jobs:
           echo "deploy_type: ${{ github.event.inputs.deploy_type }}"
           echo "run_id: ${{ github.event.inputs.run_id }}"
 
+      # Step to download build artifact by name (using GitHub Actions artifact API)
       - name: Download Artifact from Build by Name
         if: github.event.inputs.deploy_type == 'build'
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKEN: ${{ secrets.PAT_GITHUB }}
           REPO: ${{ github.repository }}
           ARTIFACT_NAME: infrastructure-artifact-${{ github.event.inputs.artifact_version }}
         run: |
           echo "Looking for artifact named: $ARTIFACT_NAME"
+          mkdir -p artifacts
 
-          # Fetch all artifacts
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" \
-                          -H "Accept: application/vnd.github+json" \
-                          https://api.github.com/repos/$REPO/actions/artifacts)
+          response=$(curl -sSL \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/actions/artifacts")
 
-          # Get the matching artifact ID
           artifact_id=$(echo "$response" | jq -r --arg NAME "$ARTIFACT_NAME" '.artifacts[] | select(.name == $NAME) | .id')
 
-          if [[ -z "$artifact_id" ]]; then
+          if [[ -z "$artifact_id" || "$artifact_id" == "null" ]]; then
             echo "❌ Artifact with name $ARTIFACT_NAME not found!"
             exit 1
           fi
 
           echo "✅ Found artifact ID: $artifact_id"
-          mkdir -p artifacts
+          curl -fL -o "./artifacts/${ARTIFACT_NAME}.zip" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/actions/artifacts/$artifact_id/zip"
 
-          # Download the artifact zip
-          curl -L -H "Authorization: Bearer $TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              -o ./artifacts/$ARTIFACT_NAME.zip \
-              https://api.github.com/repos/$REPO/actions/artifacts/$artifact_id/zip
-
-
+      # Step to download release artifact by direct URL (with auth headers)
       - name: Download artifact from GitHub Release
         if: github.event.inputs.deploy_type == 'release'
         env:
           TAG: ${{ github.event.inputs.artifact_version }}
           FILE: infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
           REPO: ${{ github.repository }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKEN: ${{ secrets.PAT_GITHUB }}
         run: |
+          mkdir -p artifacts
           url="https://github.com/$REPO/releases/download/$TAG/$FILE"
 
           echo "Checking asset URL: $url"
-          status_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+          status_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/octet-stream" \
+            "$url")
 
           if [[ "$status_code" != "200" ]]; then
             echo "❌ Asset not found at $url (HTTP $status_code)"
             exit 1
           fi
 
-          mkdir -p artifacts
-          curl -L -o "./artifacts/$FILE" "$url"
-
+          echo "✅ Asset found. Downloading to ./artifacts/$FILE"
+          curl -fL -o "./artifacts/$FILE" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/octet-stream" \
+            "$url"
 
 
       - name: Extract Zip File
