@@ -62,8 +62,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$REPO/actions/artifacts/$artifact_id/zip"
 
-      # Step to download release artifact by direct URL (with auth headers)
-      - name: Download artifact from GitHub Release
+      - name: Download artifact from GitHub Release via API
         if: github.event.inputs.deploy_type == 'release'
         env:
           TAG: ${{ github.event.inputs.artifact_version }}
@@ -71,25 +70,35 @@ jobs:
           REPO: ${{ github.repository }}
           TOKEN: ${{ secrets.PAT_GITHUB }}
         run: |
+          set -euo pipefail
           mkdir -p artifacts
-          url="https://github.com/$REPO/releases/download/$TAG/$FILE"
 
-          echo "Checking asset URL: $url"
-          status_code=$(curl -s -o /dev/null -w "%{http_code}" \
+          echo "Fetching release info for tag: $TAG"
+          release_api_url="https://api.github.com/repos/$REPO/releases/tags/$TAG"
+          release_info=$(curl -sSL \
             -H "Authorization: Bearer $TOKEN" \
-            -H "Accept: application/octet-stream" \
-            "$url")
+            -H "Accept: application/vnd.github+json" \
+            "$release_api_url")
 
-          if [[ "$status_code" != "200" ]]; then
-            echo "❌ Asset not found at $url (HTTP $status_code)"
+          echo "Looking for asset: $FILE"
+          asset_id=$(echo "$release_info" | jq -r --arg NAME "$FILE" '.assets[] | select(.name == $NAME) | .id')
+
+          if [[ -z "$asset_id" || "$asset_id" == "null" ]]; then
+            echo "❌ Artifact '$FILE' not found in release assets."
             exit 1
           fi
 
-          echo "✅ Asset found. Downloading to ./artifacts/$FILE"
-          curl -fL -o "./artifacts/$FILE" \
+          echo "✅ Found asset ID: $asset_id"
+          asset_url="https://api.github.com/repos/$REPO/releases/assets/$asset_id"
+          output_file="./artifacts/$FILE"
+
+          echo "Downloading artifact from $asset_url to $output_file"
+          curl -fL \
             -H "Authorization: Bearer $TOKEN" \
             -H "Accept: application/octet-stream" \
-            "$url"
+            "$asset_url" -o "$output_file"
+
+          echo "Done!"
 
 
       - name: Extract Zip File
@@ -104,13 +113,13 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./infrastructure
+        working-directory: artifacts
 
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color -out=tfplan
-        working-directory: ./infrastructure
+        working-directory: artifacts
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
-        working-directory: ./infrastructure
+        working-directory: artifacts
