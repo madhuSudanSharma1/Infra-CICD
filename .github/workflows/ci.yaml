@@ -355,6 +355,7 @@ jobs:
         with:
           repo_token: ${{ secrets.PAT_GITHUB }}
           prerelease: false
+          automatic_release_tag: ${{ steps.tag_version.outputs.new_tag }}
           title: Release ${{ steps.version_bump.outputs.new_version }}
           files: "infrastructure-artifact-${{ steps.version_bump.outputs.new_version }}.zip"
 
