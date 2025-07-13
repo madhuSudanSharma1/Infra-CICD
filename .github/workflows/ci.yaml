@@ -246,6 +246,7 @@ jobs:
       - name: Determine version bump
         id: version_bump
         run: |
+          set -x
           latest_version="${{ steps.latest_version.outputs.latest_version }}"
           branch="${{ github.head_ref || github.ref_name }}"
           
@@ -291,20 +292,30 @@ jobs:
             patch=0
           fi
           
+          echo "DEBUG: major=$major, minor=$minor, patch=$patch, bump_type=$bump_type" >&2
+          
           if [[ "$bump_type" == "major" ]]; then
-            ((major++))
+            ((major++)) || { echo "ERROR: Failed to increment major version" >&2; exit 1; }
             minor=0
             patch=0
           elif [[ "$bump_type" == "minor" ]]; then
-            ((minor++))
+            ((minor++)) || { echo "ERROR: Failed to increment minor version" >&2; exit 1; }
             patch=0
           else
-            ((patch++))
+            ((patch++)) || { echo "ERROR: Failed to increment patch version" >&2; exit 1; }
           fi
           
           new_version="v${major}.${minor}.${patch}"
-          echo "new_version=$new_version" >> $GITHUB_OUTPUT
-          echo "bump_type=$bump_type" >> $GITHUB_OUTPUT
+          echo "DEBUG: new_version=$new_version" >&2
+          
+          # Ensure $GITHUB_OUTPUT is writable
+          if ! touch "$GITHUB_OUTPUT" 2>/dev/null; then
+            echo "ERROR: Cannot write to $GITHUB_OUTPUT" >&2
+            exit 1
+          fi
+          
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+          echo "bump_type=$bump_type" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Generate zip artifact
