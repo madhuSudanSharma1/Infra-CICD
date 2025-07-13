@@ -363,6 +363,13 @@ jobs:
           prerelease: false
           title: Release ${{ steps.version_bump.outputs.new_version }}
           files: "infrastructure-artifact-${{ steps.version_bump.outputs.new_version }}.zip"
+      - name: Debug GitHub Context
+        run: |
+          set -x
+          echo "github.event_name=${{ github.event_name }}"
+          echo "github.base_ref=${{ github.base_ref }}"
+          echo "github.ref_name=${{ github.ref_name }}"
+        shell: bash
 
       - name: Save Dev Version
         if: github.event_name == 'pull_request' && github.ref_name == 'dev' || github.ref_name == 'dev'
