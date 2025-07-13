@@ -49,6 +49,30 @@ jobs:
         run: terraform init
         working-directory: ./infrastructure
         continue-on-error: true
+        
+      # Add workspace selection based on branch
+      - name: Select or Create Workspace
+        working-directory: ./infrastructure
+        run: |
+          # Determine workspace based on branch name
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            WORKSPACE="prod"
+          else
+            WORKSPACE="dev"
+          fi
+          
+          echo "🔄 Branch: ${{ github.ref }}"
+          echo "🔄 Using Terraform workspace: $WORKSPACE"
+          
+          # Check if workspace exists
+          if terraform workspace list | grep -q "$WORKSPACE"; then
+            echo "✅ Selecting existing workspace: $WORKSPACE"
+            terraform workspace select "$WORKSPACE"
+          else
+            echo "🆕 Creating new workspace: $WORKSPACE"
+            terraform workspace new "$WORKSPACE"
+          fi
+        continue-on-error: true
 
       - name: Run TFLint
         id: tflint
@@ -158,6 +182,29 @@ jobs:
       - name: Terraform Init
         run: terraform init
         working-directory: ./infrastructure
+        
+      # Add workspace selection based on branch
+      - name: Select or Create Workspace
+        working-directory: ./infrastructure
+        run: |
+          # Determine workspace based on branch name
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            WORKSPACE="prod"
+          else
+            WORKSPACE="dev"
+          fi
+          
+          echo "🔄 Branch: ${{ github.ref }}"
+          echo "🔄 Using Terraform workspace: $WORKSPACE"
+          
+          # Check if workspace exists
+          if terraform workspace list | grep -q "$WORKSPACE"; then
+            echo "✅ Selecting existing workspace: $WORKSPACE"
+            terraform workspace select "$WORKSPACE"
+          else
+            echo "🆕 Creating new workspace: $WORKSPACE"
+            terraform workspace new "$WORKSPACE"
+          fi
 
       - name: Check using tfsec and comment Results on PR
         id: tfsec
@@ -199,6 +246,29 @@ jobs:
       - name: Terraform Init
         run: terraform init
         working-directory: ./infrastructure
+        
+      # Add workspace selection based on branch
+      - name: Select or Create Workspace
+        working-directory: ./infrastructure
+        run: |
+          # Determine workspace based on branch name
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            WORKSPACE="prod"
+          else
+            WORKSPACE="dev"
+          fi
+          
+          echo "🔄 Branch: ${{ github.ref }}"
+          echo "🔄 Using Terraform workspace: $WORKSPACE"
+          
+          # Check if workspace exists
+          if terraform workspace list | grep -q "$WORKSPACE"; then
+            echo "✅ Selecting existing workspace: $WORKSPACE"
+            terraform workspace select "$WORKSPACE"
+          else
+            echo "🆕 Creating new workspace: $WORKSPACE"
+            terraform workspace new "$WORKSPACE"
+          fi
 
       - name: Terraform Plan
         id: plan
