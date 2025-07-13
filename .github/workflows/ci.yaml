@@ -389,7 +389,7 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add dev_version.txt || { echo "ERROR: Failed to add dev_version.txt" >&2; exit 1; }
-          git commit -m "Update dev version to ${{ steps.version_bump.outputs.new_version }}+dev+${short_hash }}" || { echo "ERROR: Failed to commit dev_version.txt" >&2; exit 1; }
+          git commit -m "Update dev version to ${{ steps.version_bump.outputs.new_version }}+dev+${{ steps.commit_hash.outputs.short_hash }}" || { echo "ERROR: Failed to commit dev_version.txt" >&2; exit 1; }
           git push origin HEAD:dev || { echo "ERROR: Failed to push to dev branch" >&2; exit 1; }
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
