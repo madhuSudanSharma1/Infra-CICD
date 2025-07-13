@@ -119,16 +119,29 @@ jobs:
       - name: Select or Create Workspace
         working-directory: infrastructure
         run: |
-          WORKSPACE="${{ github.event.inputs.deploy_type == 'release' && 'prod' || 'dev' }}"
+          set -euo pipefail
+
+          # Set workspace based on deploy_type
+          if [ "${{ github.event.inputs.deploy_type }}" = "release" ]; then
+            WORKSPACE="prod"
+          else
+            WORKSPACE="dev"
+          fi
+
           echo "Using Terraform workspace: $WORKSPACE"
-          
-          # Check if workspace exists
-          if terraform workspace list | grep -q "$WORKSPACE"; then
+
+          # Clean match for existing workspaces
+          EXISTING=$(terraform workspace list | sed 's/^[* ]*//' | grep -Fx "$WORKSPACE" || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "Workspace '$WORKSPACE' exists. Selecting it..."
             terraform workspace select "$WORKSPACE"
           else
+            echo "Workspace '$WORKSPACE' not found. Creating it..."
             terraform workspace new "$WORKSPACE"
           fi
-          
+
+
       - name: Terraform Plan
         id: plan
         working-directory: infrastructure
