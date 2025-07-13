@@ -5,7 +5,12 @@ on:
       - opened
       - synchronize
       - reopened
-
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/**'
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -243,17 +248,9 @@ jobs:
           fi
         shell: bash
 
-      - name: Debug GITHUB_OUTPUT
-        run: |
-          set -x
-          echo "GITHUB_OUTPUT=$GITHUB_OUTPUT"
-          ls -l "$GITHUB_OUTPUT" || echo "GITHUB_OUTPUT file not found"
-        shell: bash
-
       - name: Determine version bump
         id: version_bump
         run: |
-          set -x
           latest_version="${{ steps.latest_version.outputs.latest_version }}"
           branch="${{ github.head_ref || github.ref_name }}"
           
@@ -299,7 +296,6 @@ jobs:
             patch=0
           fi
           
-          echo "DEBUG: major=$major, minor=$minor, patch=$patch, bump_type=$bump_type" >&2
           
           if [[ "$bump_type" == "major" ]]; then
             major=$((major + 1)) || { echo "ERROR: Failed to increment major version" >&2; exit 1; }
@@ -309,12 +305,10 @@ jobs:
             minor=$((minor + 1)) || { echo "ERROR: Failed to increment minor version" >&2; exit 1; }
             patch=0
           else
-            echo "DEBUG: patch before increment=$patch" >&2
             patch=$((patch + 1)) || { echo "ERROR: Failed to increment patch version" >&2; exit 1; }
           fi
           
           new_version="v${major}.${minor}.${patch}"
-          echo "DEBUG: new_version=$new_version" >&2
           
           # Ensure $GITHUB_OUTPUT is writable
           if ! touch "$GITHUB_OUTPUT" 2>/dev/null; then
@@ -363,29 +357,18 @@ jobs:
           prerelease: false
           title: Release ${{ steps.version_bump.outputs.new_version }}
           files: "infrastructure-artifact-${{ steps.version_bump.outputs.new_version }}.zip"
-      - name: Debug GitHub Context
-        run: |
-          set -x
-          echo "github.event_name=${{ github.event_name }}"
-          echo "github.base_ref=${{ github.base_ref }}"
-          echo "github.ref_name=${{ github.ref_name }}"
-          echo "github.head_ref=${{ github.head_ref }}"
-        shell: bash
 
       - name: Save Dev Version
         if: github.event_name == 'pull_request' && github.head_ref == 'dev' || github.ref_name == 'dev'
         run: |
-          set -x
           version="${{ steps.version_bump.outputs.new_version }}"
           short_hash="${{ steps.commit_hash.outputs.short_hash }}"
-          echo "DEBUG: Saving version ${version}+dev+${short_hash} to dev_version.txt" >&2
           echo "${version}+dev+${short_hash}" >> dev_version.txt || { echo "ERROR: Failed to write to dev_version.txt" >&2; exit 1; }
         working-directory: .
 
       - name: Commit Dev Version File
         if: github.event_name == 'pull_request' && github.head_ref == 'dev' || github.ref_name == 'dev'
         run: |
-          set -x
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add dev_version.txt || { echo "ERROR: Failed to add dev_version.txt" >&2; exit 1; }
