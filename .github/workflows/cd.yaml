@@ -116,6 +116,19 @@ jobs:
         working-directory: infrastructure
         run: terraform init
 
+      - name: Select or Create Workspace
+        working-directory: infrastructure
+        run: |
+          WORKSPACE="${{ github.event.inputs.deploy_type == 'release' && 'prod' || 'dev' }}"
+          echo "Using Terraform workspace: $WORKSPACE"
+          
+          # Check if workspace exists
+          if terraform workspace list | grep -q "$WORKSPACE"; then
+            terraform workspace select "$WORKSPACE"
+          else
+            terraform workspace new "$WORKSPACE"
+          fi
+          
       - name: Terraform Plan
         id: plan
         working-directory: infrastructure
