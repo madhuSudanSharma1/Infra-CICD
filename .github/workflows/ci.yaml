@@ -365,23 +365,27 @@ jobs:
           files: "infrastructure-artifact-${{ steps.version_bump.outputs.new_version }}.zip"
 
       - name: Save Dev Version
-        if: github.base_ref == 'dev' || github.ref_name == 'dev'
+        if: github.event_name == 'pull_request' && github.ref_name == 'dev' || github.ref_name == 'dev'
         run: |
+          set -x
           version="${{ steps.version_bump.outputs.new_version }}"
           short_hash="${{ steps.commit_hash.outputs.short_hash }}"
-          echo "${version}+dev+${short_hash}" >> dev_version.txt
+          echo "DEBUG: Saving version ${version}+dev+${short_hash} to dev_version.txt" >&2
+          echo "${version}+dev+${short_hash}" >> dev_version.txt || { echo "ERROR: Failed to write to dev_version.txt" >&2; exit 1; }
         working-directory: .
 
       - name: Commit Dev Version File
-        if: github.base_ref == 'dev' || github.ref_name == 'dev'
+        if: github.event_name == 'pull_request' && github.ref_name == 'dev' || github.ref_name == 'dev'
         run: |
+          set -x
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add dev_version.txt
-          git commit -m "Update dev version to ${{ steps.version_bump.outputs.new_version }}+dev+${{ steps.commit_hash.outputs.short_hash }}"
-          git push
+          git add dev_version.txt || { echo "ERROR: Failed to add dev_version.txt" >&2; exit 1; }
+          git commit -m "Update dev version to ${{ steps.version_bump.outputs.new_version }}+dev+${short_hash }}" || { echo "ERROR: Failed to commit dev_version.txt" >&2; exit 1; }
+          git push || { echo "ERROR: Failed to push to repository" >&2; exit 1; }
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
+
 
       - name: Comment Version on PR
         if: github.event_name == 'pull_request'
