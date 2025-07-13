@@ -13,10 +13,6 @@ on:
         description: 'Artifact version (e.g., v1.2.3 )'
         required: true
         type: string
-      run_id:
-        description: 'Run ID of the CI workflow (only required for build deployments)'
-        required: false
-        type: string
 
 jobs:
   deploy:
@@ -37,23 +33,60 @@ jobs:
           echo "deploy_type: ${{ github.event.inputs.deploy_type }}"
           echo "run_id: ${{ github.event.inputs.run_id }}"
 
-      - name: Download Artifact from Build
+      - name: Download Artifact from Build by Name
         if: github.event.inputs.deploy_type == 'build'
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          workflow: ci.yaml
-          run_id: ${{ github.event.inputs.run_id }}
-          name: infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
-          path: ./artifacts
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ARTIFACT_NAME: infrastructure-artifact-${{ github.event.inputs.artifact_version }}
+        run: |
+          echo "Looking for artifact named: $ARTIFACT_NAME"
 
-      - name: Download Artifact from Release
+          # Fetch all artifacts
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" \
+                          -H "Accept: application/vnd.github+json" \
+                          https://api.github.com/repos/$REPO/actions/artifacts)
+
+          # Get the matching artifact ID
+          artifact_id=$(echo "$response" | jq -r --arg NAME "$ARTIFACT_NAME" '.artifacts[] | select(.name == $NAME) | .id')
+
+          if [[ -z "$artifact_id" ]]; then
+            echo "❌ Artifact with name $ARTIFACT_NAME not found!"
+            exit 1
+          fi
+
+          echo "✅ Found artifact ID: $artifact_id"
+          mkdir -p artifacts
+
+          # Download the artifact zip
+          curl -L -H "Authorization: Bearer $TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -o ./artifacts/$ARTIFACT_NAME.zip \
+              https://api.github.com/repos/$REPO/actions/artifacts/$artifact_id/zip
+
+
+      - name: Download artifact from GitHub Release
         if: github.event.inputs.deploy_type == 'release'
-        uses: dsaltares/fetch-gh-release-asset@master
-        with:
-          repo: ${{ github.repository }}
-          version: ${{ github.event.inputs.artifact_version }}
-          file: infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
-          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TAG: ${{ github.event.inputs.artifact_version }}
+          FILE: infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          url="https://github.com/$REPO/releases/download/$TAG/$FILE"
+
+          echo "Checking asset URL: $url"
+          status_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+
+          if [[ "$status_code" != "200" ]]; then
+            echo "❌ Asset not found at $url (HTTP $status_code)"
+            exit 1
+          fi
+
+          mkdir -p artifacts
+          curl -L -o "./artifacts/$FILE" "$url"
+
+
 
       - name: Extract Zip File
         run: |
