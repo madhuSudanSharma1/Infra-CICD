@@ -343,9 +343,9 @@ jobs:
           
           # For PRs targeting dev branch or pushes to dev, determine bump based on source branch prefix
           if [[ "${{ github.base_ref }}" == "dev" || "$branch" == "dev" ]]; then
-            if [[ "$branch" =~ ^major/ ]]; then
+            if [[ "$branch" =~ ^major ]]; then
               bump_type="major"
-            elif [[ "$branch" =~ ^minor/ ]]; then
+            elif [[ "$branch" =~ ^minor ]]; then
               bump_type="minor"
             else
               bump_type="patch"
@@ -355,9 +355,9 @@ jobs:
             # Check dev branch history for major/minor/patch branches
             git fetch origin dev || true
             git log --pretty=%s origin/dev --grep='Merge pull request' > merge_commits.txt || echo "" > merge_commits.txt
-            if grep -qE 'from .*/major/' merge_commits.txt; then
+            if grep -qE 'from .*/major' merge_commits.txt; then
               bump_type="major"
-            elif grep -qE 'from .*/minor/' merge_commits.txt; then
+            elif grep -qE 'from .*/minor' merge_commits.txt; then
               bump_type="minor"
             else
               bump_type="patch"
