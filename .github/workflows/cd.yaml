@@ -10,8 +10,12 @@ on:
           - release
           - build
       artifact_version:
-        description: 'Artifact version (e.g., v1.0.2 for release, or v1.0.6+dev+41e236 for build)'
+        description: 'Artifact version (e.g., v1.2.3 )'
         required: true
+        type: string
+      run_id:
+        description: 'Run ID of the CI workflow (only required for build deployments)'
+        required: false
         type: string
 
 jobs:
@@ -20,7 +24,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      actions: read  # Required for accessing workflow run artifacts
     steps:
       - name: Configure AWS Credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -28,68 +31,23 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: us-east-1
 
-      - name: Debug Build Inputs
-        if: github.event.inputs.deploy_type == 'build'
-        run: |
-          echo "Deploy Type: ${{ github.event.inputs.deploy_type }}"
-          echo "Artifact Version: ${{ github.event.inputs.artifact_version }}"
-          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Accept: application/vnd.github.v3+json" \
-               https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci.yaml/runs | jq -r '.workflow_runs[] | select(.status == "completed") | .id'
-
       - name: Download Artifact from Build
         if: github.event.inputs.deploy_type == 'build'
-        run: |
-          # Find the most recent completed ci.yaml run with the specified artifact
-          RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci.yaml/runs | jq -r '.workflow_runs[] | select(.status == "completed") | .id' | head -n 1)
-          if [ -z "$RUN_ID" ]; then
-            echo "Error: No completed ci.yaml workflow runs found"
-            exit 1
-          fi
-          ARTIFACT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts | jq -r '.artifacts[] | select(.name == "infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip") | .id')
-          if [ -z "$ARTIFACT_ID" ]; then
-            echo "Error: Artifact infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip not found in run $RUN_ID"
-            exit 1
-          fi
-          curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/octet-stream" \
-            https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID/zip \
-            -o ./artifacts/infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
-
-      - name: Debug Release Inputs
-        if: github.event.inputs.deploy_type == 'release'
-        run: |
-          echo "Deploy Type: ${{ github.event.inputs.deploy_type }}"
-          echo "Artifact Version: ${{ github.event.inputs.artifact_version }}"
-          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Accept: application/vnd.github.v3+json" \
-               https://api.github.com/repos/${{ github.repository }}/releases
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow: ci.yaml
+          run_id: ${{ github.event.inputs.run_id }}
+          name: infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
+          path: ./artifacts
 
       - name: Download Artifact from Release
         if: github.event.inputs.deploy_type == 'release'
-        run: |
-          RELEASE_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.event.inputs.artifact_version }} | jq -r '.id')
-          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
-            echo "Error: Release ${{ github.event.inputs.artifact_version }} not found"
-            exit 1
-          fi
-          ASSET_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets | jq -r '.[] | select(.name == "infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip") | .id')
-          if [ -z "$ASSET_ID" ] || [ "$ASSET_ID" = "null" ]; then
-            echo "Error: Asset infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip not found"
-            exit 1
-          fi
-          curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/octet-stream" \
-            https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID \
-            -o ./artifacts/infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: ${{ github.repository }}
+          version: ${{ github.event.inputs.artifact_version }}
+          file: infrastructure-artifact-${{ github.event.inputs.artifact_version }}.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Zip File
         run: |
