@@ -331,7 +331,8 @@ jobs:
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             zip -r "infrastructure-artifact-${version}.zip" ./infrastructure
           else
-            zip -r "infrastructure-artifact-${version}+dev+${short_hash}.zip" ./infrastructure
+            mkdir temp-folder
+            cp -r infrastructure temp-folder/infrastructure
           fi
         working-directory: .
 
@@ -340,7 +341,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "infrastructure-artifact-${{ steps.version_bump.outputs.new_version }}+dev+${{ steps.commit_hash.outputs.short_hash }}"
-          path: "infrastructure-artifact-${{ steps.version_bump.outputs.new_version }}+dev+${{ steps.commit_hash.outputs.short_hash }}.zip"
+          path: ./temp-folder
           retention-days: 7
 
       - name: Create GitHub Tag
